@@ -1,0 +1,68 @@
+{
+  "ptbxl_version": "1.0.3",
+  "class_order": [
+    "NORM",
+    "MI",
+    "STTC",
+    "CD",
+    "HYP"
+  ],
+  "eligible_records": 21388,
+  "patients_crossing_official_folds": 0,
+  "splits": {
+    "train": {
+      "n_derived": 17084,
+      "n_saved": 17084,
+      "multihot_exact_match": true,
+      "raw_label_exact_match": false,
+      "raw_label_set_exact_match": true,
+      "positive_counts": [
+        7596,
+        4379,
+        4186,
+        3907,
+        2119
+      ],
+      "unique_patients": 14823,
+      "first_ecg_id": 1,
+      "last_ecg_id": 21836
+    },
+    "val": {
+      "n_derived": 2146,
+      "n_saved": 2146,
+      "multihot_exact_match": true,
+      "raw_label_exact_match": null,
+      "raw_label_set_exact_match": null,
+      "positive_counts": [
+        955,
+        540,
+        528,
+        495,
+        268
+      ],
+      "unique_patients": 1917,
+      "first_ecg_id": 8,
+      "last_ecg_id": 21837
+    },
+    "test": {
+      "n_derived": 2158,
+      "n_saved": 2158,
+      "multihot_exact_match": true,
+      "raw_label_exact_match": false,
+      "raw_label_set_exact_match": true,
+      "positive_counts": [
+        963,
+        550,
+        521,
+        496,
+        262
+      ],
+      "unique_patients": 1877,
+      "first_ecg_id": 9,
+      "last_ecg_id": 21826
+    }
+  },
+  "patient_overlap_train_val": 0,
+  "patient_overlap_train_test": 0,
+  "patient_overlap_val_test": 0
+}

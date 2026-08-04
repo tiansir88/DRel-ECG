@@ -1,0 +1,7 @@
+{
+  "n_samples": 30,
+  "all_fs_100": true,
+  "all_shapes_1000x12": true,
+  "all_exact_match": true,
+  "global_max_abs_diff": 0.0
+}

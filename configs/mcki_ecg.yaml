@@ -1,0 +1,46 @@
+experiment:
+  class_names: [NORM, MI, STTC, CD, HYP]
+  seeds: [42, 123, 1024]
+  input_shape: [12, 1000]
+  sampling_rate_hz: 100
+
+model:
+  backbone: resnet18
+  projection_dim: 128
+
+pretraining:
+  epochs: 40
+  warmup_epochs: 10
+  batch_size: 64
+  learning_rate: 0.0001
+  weight_decay: 0.00001
+  temperature: 0.1
+  hard_negative_alpha: 2.0
+  positive_jaccard_threshold: 0.5
+  relation_edge_budget: 6
+  prior_weight: 0.5
+  confusion_weight: 0.5
+  patient_grouped_crossfit_folds: 5
+  local_window_size: 200
+  local_num_windows: 4
+  local_loss_weight: 0.30
+  alignment_loss_weight: 0.20
+  dynamic_lead_mask_probability: 0.90
+  dynamic_lead_mask_min_drop: 1
+  dynamic_lead_mask_max_drop: 3
+
+downstream:
+  protocols: [strict_linear_probe, restricted_1_percent, restricted_10_percent, full_fine_tuning]
+  checkpoint_metric: AUPRC
+  validation_selected_thresholds: true
+  strict_linear_probe:
+    epochs: 25
+    learning_rate: 0.001
+    weight_decay: 0.0001
+    encoder_parameters: frozen
+    normalization_state: frozen_eval
+
+statistics:
+  bootstrap_replicates: 10000
+  resampling_unit: patient
+  paired: true

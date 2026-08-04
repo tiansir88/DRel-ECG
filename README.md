@@ -1,356 +1,171 @@
-# MCKI-ECG: Multi-Level Clinical Knowledge Injection for ECG Representation Learning
+# MCKI-ECG
 
-This repository contains the source code and analysis scripts for **MCKI-ECG**, a Multi-Level Clinical Knowledge Injection framework for multi-label 12-lead ECG representation learning.
+This repository contains the reference implementation of **MCKI-ECG**, including graph-guided hard-negative mining (GHNM), patient-grouped relation-graph construction, downstream evaluation, component controls, missing-lead robustness, and patient-clustered paired bootstrap analysis.
 
-MCKI-ECG integrates four complementary forms of clinical knowledge:
+Only MCKI-ECG code is included. Reproduction code and pretrained weights for external comparison models are intentionally excluded.
 
-1. **Diagnostic-relation Knowledge**: models clinically confusable diagnostic relations through graph-informed hard negative modeling.
-2. **Lead-topology Knowledge**: uses the structured multi-view nature of 12-lead ECG.
-3. **Acquisition-robustness Knowledge**: improves robustness under imperfect or missing lead acquisition.
-4. **Local-morphology Knowledge**: enhances representation learning through local waveform morphology.
-
-> **Naming note.** Some internal scripts or historical checkpoints may use `GHNM`. In this repository, `GHNM` refers to the central diagnostic-relation hard negative mechanism within the full MCKI-ECG framework. The paper-level method name is **MCKI-ECG**.
-
----
-
-## Repository structure
+## Repository layout
 
 ```text
-MCKI-paper-release/
-├── README.md
-├── LICENSE
-├── requirements.txt
-├── .gitignore
-│
-├── resources/
-│   └── confusable_pairs_v1.csv
-│
-├── src/
-│   ├── MCKI_backbone_factory.py
-│   ├── MCKI_loss_pro.py
-│   ├── MCKI_relation_builder_stage4.py
-│   ├── dataset_v3.py
-│   ├── losses_multilabel.py
-│   ├── resnet1d.py
-│   ├── train_v3_2stage.py
-│   ├── st_mem.py
-│   ├── run_stage8_leadaware_multiscale_MCKI_5protocols.py
-│   └── ablation_stage8.py
-│
-├── external_eval/
-│   ├── evaluate_external_georgia.py
-│   ├── evaluate_external_sph.py
-│   ├── external_dataset.py
-│   └── metrics_external.py
-│
-├── scripts/
-│   ├── data_preparation/
-│   │   ├── georgia_step1_audit_and_extract_dx.py
-│   │   ├── georgia_step2_make_ptbxl5_manifest.py
-│   │   ├── georgia_step3_build_external_processed_auto.py
-│   │   ├── sph_step1_build_statement_table.py
-│   │   ├── sph_step2_make_ptbxl5_manifest.py
-│   │   └── sph_step3_build_external_processed_auto.py
-│   │
-│   ├── train_eval/
-│   │   └── run_stage8_leadaware_multiscale_MCKI_export_arrays.py
-│   │
-│   └── analysis/
-│       ├── plot_mi_vs_sttc_score_distribution.py
-│       ├── build_confusable_pair_table.py
-│       └── build_hndr_supp_table_from_master_md.py
+mcki_ecg/                  Core model, loss, data, graph, and evaluation modules
+scripts/data/              PTB-XL preprocessing
+scripts/training/          Pretraining, graph controls, ablations, and adaptation
+scripts/evaluation/        Strict LP, external, missing-lead, and sensitivity analyses
+scripts/statistics/        Patient-clustered and graph-control paired bootstrap
+scripts/figures/           Relation-graph figure and auditable matrix exports
+configs/                   Canonical protocol and example comparison configuration
+resources/manifests/       PTB-XL split/audit manifests used in the study
+resources/hndr_pairs.csv   Prespecified diagnostic pairs for HNDR
+tests/                     Lightweight core checks
 ```
 
----
+## Terminology
 
-## Main components
+The public code uses one canonical vocabulary:
 
-### `src/`
+- **MCKI-ECG**: complete method.
+- **GHNM**: graph-guided hard-negative mining loss.
+- **Hybrid**: graph built from the equally weighted co-occurrence prior and normalized patient-grouped cross-fitted confusion matrix.
+- **Uniform Negatives**: GHNM removed while all other modules remain matched.
+- **Degree-Matched Shuffled**: shuffled graph with the same edge budget.
+- **Dynamic Lead Masking**, **Local Contrastive Loss**, **Alignment**, and **Lead-Aware Modulation**: component names used in code and manuscript tables.
+- **Strict Linear Probing**: encoder parameters and normalization state are frozen; only a new linear classifier is optimized.
 
-Core model, training, and ablation code.The core implementation code for this part is currently not publicly available, pending completion of institutional intellectual property review.
+Legacy development names such as `stage8`, date-suffixed filenames, `MCKI_Pro`, and `processed_v3` are not part of the public file layout. A few internal compatibility aliases remain solely so that archived checkpoints can be loaded.
 
-- `MCKI_backbone_factory.py`: builds the MCKI-ECG backbone.
-- `MCKI_loss_pro.py`: implements the MCKI-ECG training objective, including diagnostic-relation hard negative modeling.
-- `MCKI_relation_builder_stage4.py`: builds diagnostic relation structures used by the relation-guided mechanism.
-- `dataset_v3.py`: dataset loading utilities.
-- `losses_multilabel.py`: multi-label classification losses and related utilities.
-- `resnet1d.py`: 1D ResNet ECG encoder implementation.
-- `train_v3_2stage.py`: two-stage training entry point.
-- `st_mem.py`: supporting memory or state-tracking utilities.
-- `run_stage8_leadaware_multiscale_MCKI_5protocols.py`: main protocol-level MCKI-ECG evaluation script.
-- `ablation_stage8.py`: ablation experiments for MCKI-ECG knowledge components.
+## Environment
 
-### `external_eval/`
-
-External validation code for Georgia and SPH datasets.
-
-- `evaluate_external_georgia.py`: Georgia external evaluation.
-- `evaluate_external_sph.py`: SPH external evaluation.
-- `external_dataset.py`: external dataset loading utilities.
-- `metrics_external.py`: external evaluation metrics.
-
-### `scripts/data_preparation/`
-
-Dataset preprocessing and manifest construction scripts.
-
-- `georgia_step1_audit_and_extract_dx.py`: audits Georgia diagnostic statements and extracts target diagnostic labels.
-- `georgia_step2_make_ptbxl5_manifest.py`: builds Georgia-to-PTB-XL-style manifest files.
-- `georgia_step3_build_external_processed_auto.py`: generates processed Georgia arrays for external evaluation.
-- `sph_step1_build_statement_table.py`: builds SPH diagnostic statement tables.
-- `sph_step2_make_ptbxl5_manifest.py`: builds SPH-to-PTB-XL-style manifest files.
-- `sph_step3_build_external_processed_auto.py`: generates processed SPH arrays for external evaluation.
-
-### `scripts/train_eval/`
-
-Training/evaluation helper scripts.
-
-- `run_stage8_leadaware_multiscale_MCKI_export_arrays.py`: reruns the Stage-8 lead-aware and multiscale MCKI-ECG setting and exports intermediate arrays such as prediction probabilities, targets, thresholds, and validation outputs for downstream analysis.
-
-### `scripts/analysis/`
-
-Figure and supplementary analysis scripts.
-
-- `plot_mi_vs_sttc_score_distribution.py`: plots MI-vs-STTC score or margin distributions.
-- `build_confusable_pair_table.py`: builds confusable-pair analysis tables.
-- `build_hndr_supp_table_from_master_md.py`: builds supplementary HNDR tables from master result files.
-
-### `resources/`
-
-- `confusable_pairs_v1.csv`: predefined clinically confusable diagnostic pairs used by diagnostic-relation knowledge modeling and pair-level analysis.
-
----
-
-## Installation
-
-Create a clean Python environment:
+Python 3.10 or newer is recommended. Install a CUDA-compatible PyTorch build for the target machine first, then install the remaining package dependencies:
 
 ```bash
-conda create -n mcki-ecg python=3.10 -y
-conda activate mcki-ecg
+python -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install torch --index-url https://download.pytorch.org/whl/cu128
+pip install -e .
 ```
 
-Install dependencies:
+## PTB-XL preparation
+
+Download and unpack PTB-XL v1.0.3 from PhysioNet. The preparation script reads the official 100 Hz records and creates the five-superclass arrays using folds 1–8/9/10 for train/validation/test:
 
 ```bash
-pip install -r requirements.txt
+python -m scripts.data.prepare_ptbxl \
+  --source-root /path/to/ptb-xl-a-large-publicly-available-electrocardiography-dataset-1.0.3 \
+  --out-dir data/processed
 ```
 
-Set the repository root as `PYTHONPATH`:
+Expected signal shape is `12 × 1000` after loading. The class order is fixed to `NORM, MI, STTC, CD, HYP`. The script saves record IDs, patient IDs, `strat_fold`, filenames, labels, positive counts, and patient-overlap checks.
+
+Raw ECG data, external cohorts, predictions, and checkpoints are not committed to Git.
+
+## Reproduce the relation graph and MCKI-ECG training
+
+The canonical configuration is documented in [`configs/mcki_ecg.yaml`](configs/mcki_ecg.yaml). The executable experiment defaults are defined in `mcki_ecg/experiment.py`.
+
+First build the train-only record-grouped reference used for the graph-stability comparison:
 
 ```bash
-export PYTHONPATH="$(pwd):$(pwd)/src:${PYTHONPATH}"
+python -m scripts.training.train_crossfit_hybrid \
+  --data-dir data/processed \
+  --out-dir outputs/record_grouped_reference \
+  --variants Hybrid \
+  --protocols Linear_Probing \
+  --seeds 42,123,1024
 ```
 
----
-
-## Data preparation
-
-This repository does not redistribute raw ECG datasets. Please download the datasets from their official sources and preprocess them into the expected local format.
-
-Typical preprocessing workflow:
+Then reconstruct the graph with patient-grouped five-fold cross-fitting:
 
 ```bash
-# Georgia preprocessing
-python scripts/data_preparation/georgia_step1_audit_and_extract_dx.py
-python scripts/data_preparation/georgia_step2_make_ptbxl5_manifest.py
-python scripts/data_preparation/georgia_step3_build_external_processed_auto.py
-
-# SPH preprocessing
-python scripts/data_preparation/sph_step1_build_statement_table.py
-python scripts/data_preparation/sph_step2_make_ptbxl5_manifest.py
-python scripts/data_preparation/sph_step3_build_external_processed_auto.py
+python -m scripts.training.train_patient_grouped \
+  --data-dir data/processed \
+  --manifest resources/manifests/ptbxl_train_manifest.csv \
+  --record-root outputs/record_grouped_reference/Hybrid \
+  --out-dir outputs/patient_grouped_reference
 ```
 
-Before running the scripts, check and update dataset paths, output directories, and label mappings according to your local environment.
-
----
-
-## Training and protocol-level evaluation
-
-Run the main MCKI-ECG training or evaluation script:
+Finally use the patient-grouped graph artifacts for the second pretraining stage, matched graph controls, and requested downstream protocols:
 
 ```bash
-python src/run_stage8_leadaware_multiscale_MCKI_5protocols.py
+python -m scripts.training.train_fixed_graph_controls \
+  --data-dir data/processed \
+  --fixed-graph-root outputs/patient_grouped_reference \
+  --out-dir outputs/fixed_graph_controls \
+  --variants Hybrid,Uniform_Negatives,Degree_Matched_Shuffled \
+  --protocols Linear_Probing \
+  --seeds 42,123,1024
 ```
 
-For two-stage training:
+Component variants are run with `scripts.training.train_component_ablations` using the same data, seeds, graph, edge budget, and training schedule.
+
+## Strict linear probing
+
+The checkpoint pattern must contain `{seed}`:
 
 ```bash
-python src/train_v3_2stage.py
+python -m scripts.evaluation.strict_linear_probe \
+  --data-dir data/processed \
+  --checkpoint-pattern 'outputs/fixed_graph_controls/Hybrid/seed_{seed}/pretrained_checkpoint.pt' \
+  --out-dir outputs/strict_linear_probe
 ```
 
-For ablation experiments:
+The script saves each seed's frozen-encoder head, validation-selected thresholds, validation/test probabilities, targets, metrics, and the three-seed summary.
+
+## Missing-lead robustness
 
 ```bash
-python src/ablation_stage8.py
+python -m scripts.evaluation.missing_lead \
+  --data-dir data/processed \
+  --encoder-checkpoint-pattern 'outputs/fixed_graph_controls/Hybrid/seed_{seed}/pretrained_checkpoint.pt' \
+  --head-pattern 'outputs/strict_linear_probe/seed_{seed}/strict_linear_head.pt' \
+  --threshold-pattern 'outputs/strict_linear_probe/seed_{seed}/thresholds.npy' \
+  --out-dir outputs/missing_lead
 ```
 
-If your scripts expose command-line arguments, set the following paths explicitly:
-
-```bash
---data-dir /path/to/processed/data
---output-dir /path/to/outputs
---confusable-pairs resources/confusable_pairs_v1.csv
---checkpoint /path/to/checkpoint.pth
-```
-
----
+Random lead masks are deterministic per record and shared across model seeds. The summary reports the mean and sample standard deviation of both absolute AUPRC and the within-seed decrease from Original.
 
 ## External evaluation
 
-After preprocessing Georgia or SPH data, run:
+Georgia and SPH must be prepared as `X_test.npy` and `y_test_mh.npy` with the same input shape and class order:
 
 ```bash
-python external_eval/evaluate_external_georgia.py
-python external_eval/evaluate_external_sph.py
+python -m scripts.evaluation.external \
+  --encoder-checkpoint-pattern 'outputs/fixed_graph_controls/Hybrid/seed_{seed}/pretrained_checkpoint.pt' \
+  --head-pattern 'outputs/strict_linear_probe/seed_{seed}/strict_linear_head.pt' \
+  --threshold-pattern 'outputs/strict_linear_probe/seed_{seed}/thresholds.npy' \
+  --georgia-dir data/external/georgia \
+  --sph-dir data/external/sph \
+  --out-dir outputs/external
 ```
 
-Make sure the external evaluation scripts point to:
+No target-cohort training or threshold tuning is performed.
 
-```text
-resources/confusable_pairs_v1.csv
-```
+## Patient-clustered paired bootstrap
 
-rather than any legacy internal path such as `src3/confusable_pairs_v1.csv`.
-
----
-
-## Exporting arrays for supplementary analyses
-
-Some supplementary analyses require saved model outputs such as probabilities, targets, validation probabilities, validation targets, and thresholds.
-
-Run:
+Define probability/target patterns in a JSON file following [`configs/comparisons.example.json`](configs/comparisons.example.json), then run:
 
 ```bash
-python scripts/train_eval/run_stage8_leadaware_multiscale_MCKI_export_arrays.py
+python -m scripts.statistics.patient_clustered_bootstrap \
+  --root . \
+  --manifest resources/manifests/ptbxl_test_manifest.csv \
+  --pairs resources/hndr_pairs.csv \
+  --comparison-config configs/comparisons.example.json \
+  --out-dir outputs/bootstrap \
+  --n-boot 10000
 ```
 
-Expected exported files may include:
+The output reports the seed-mean paired difference, 95% percentile interval, empirical `Pr(Δ ≤ 0)`, and the number of positive seed directions.
 
-```text
-test_probs.npy
-test_targets.npy
-thresholds.npy
-val_probs.npy
-val_targets.npy
-```
-
-These files are used by the analysis scripts below.
-
----
-
-## Analysis and figure generation
-
-Run MI-vs-STTC score distribution analysis:
+## Tests
 
 ```bash
-python scripts/analysis/plot_mi_vs_sttc_score_distribution.py
+python -m compileall -q mcki_ecg scripts tests
+pytest -q
 ```
-
-Build confusable-pair tables:
-
-```bash
-python scripts/analysis/build_confusable_pair_table.py
-```
-
-Build supplementary HNDR tables:
-
-```bash
-python scripts/analysis/build_hndr_supp_table_from_master_md.py
-```
-
-Check each script for its expected input paths before execution.
-
----
 
 ## Reproducibility notes
 
-For reproducible results, report or fix the following settings:
-
-- random seed;
-- dataset split;
-- input sampling frequency and signal length;
-- label set and label order;
-- threshold selection strategy;
-- checkpoint path;
-- evaluation protocol;
-- confusable-pair definition file.
-
-The file `resources/confusable_pairs_v1.csv` should be version-controlled because it affects diagnostic-relation knowledge modeling and HNDR-related analysis.
-
----
-
-## Expected outputs
-
-Depending on the entry point, outputs may include:
-
-```text
-checkpoints/
-results/
-logs/
-test_probs.npy
-test_targets.npy
-thresholds.npy
-val_probs.npy
-val_targets.npy
-figures/
-supplementary_tables/
-```
-
-Large files such as checkpoints, processed datasets, cached arrays, and generated figures should not be committed unless explicitly required. Use `.gitignore` to exclude them.
-
----
-
-## Recommended `.gitignore` entries
-
-```text
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.ipynb_checkpoints/
-
-checkpoints/
-outputs/
-results/
-logs/
-figures/
-processed/
-cache/
-
-*.npy
-*.npz
-*.pth
-*.pt
-*.ckpt
-*.zip
-*.tar
-*.gz
-```
-
----
-
-## Citation
-
-If you use this repository, please cite the associated paper:
-
-```bibtex
-@article{mcki_ecg,
-  title   = {MCKI-ECG: Multi-Level Clinical Knowledge Injection for ECG Representation Learning},
-  author  = {Author names omitted for review or to be updated},
-  journal = {To be updated},
-  year    = {To be updated}
-}
-```
-
----
-
-## License
-
-This repository is released under the license specified in `LICENSE`.
-
----
-
-## Contact
-
-For questions about the code or experiments, please contact the corresponding author listed in the paper.
+- The released manifests document record identity, patient identity, and official fold assignment.
+- Relation matrices and selected edges are generated by code; the figure script exports all intermediate matrices and the complete ten-pair edge table.
+- Restricted 1%/10% experiments refer to downstream adaptation after fully label-informed pretraining, not label-efficient pretraining.
+- Experimental outputs should be stored under `outputs/`, which is ignored by Git.

@@ -1,0 +1,24 @@
+[
+  {
+    "name": "Hybrid_vs_Uniform_Negatives",
+    "a": {
+      "probs": "outputs/strict_controls/Hybrid/seed_{seed}/test_probs.npy",
+      "targets": "outputs/strict_controls/Hybrid/seed_{seed}/test_targets.npy"
+    },
+    "b": {
+      "probs": "outputs/strict_controls/Uniform_Negatives/seed_{seed}/test_probs.npy",
+      "targets": "outputs/strict_controls/Uniform_Negatives/seed_{seed}/test_targets.npy"
+    }
+  },
+  {
+    "name": "Hybrid_vs_Degree_Matched_Shuffled",
+    "a": {
+      "probs": "outputs/strict_controls/Hybrid/seed_{seed}/test_probs.npy",
+      "targets": "outputs/strict_controls/Hybrid/seed_{seed}/test_targets.npy"
+    },
+    "b": {
+      "probs": "outputs/strict_controls/Degree_Matched_Shuffled/seed_{seed}/test_probs.npy",
+      "targets": "outputs/strict_controls/Degree_Matched_Shuffled/seed_{seed}/test_targets.npy"
+    }
+  }
+]
