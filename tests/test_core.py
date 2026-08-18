@@ -1,8 +1,10 @@
 import numpy as np
 import torch
 
-from mcki_ecg.losses import GHNMLoss
-from mcki_ecg.relation_graph import blend_relation_matrices, estimate_confusion_matrix_from_probs
+from drel_ecg.losses import GHNMLoss
+from drel_ecg.model import DRelECGModel
+from drel_ecg.relation_graph import blend_relation_matrices, estimate_confusion_matrix_from_probs
+from mcki_ecg.model import MCKIECGModel
 
 
 def test_confusion_normalization_and_fusion():
@@ -35,3 +37,7 @@ def test_ghnm_loss_is_finite():
     loss = GHNMLoss()(features, labels)
     assert loss.ndim == 0
     assert torch.isfinite(loss)
+
+
+def test_legacy_model_name_resolves_to_drel_model():
+    assert MCKIECGModel is DRelECGModel

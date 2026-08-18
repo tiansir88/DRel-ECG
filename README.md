@@ -1,41 +1,39 @@
-# MCKI-ECG
+# DRel-ECG
 
-This repository contains the reference implementation of **MCKI-ECG**, including graph-guided hard-negative mining (GHNM), patient-grouped relation-graph construction, downstream evaluation, component controls, missing-lead robustness, and patient-clustered paired bootstrap analysis.
+Reference implementation of **DRel-ECG** (*Diagnostic-Relation-Guided Contrastive Pretraining for Multi-Label ECG Diagnosis*) and its core mechanism, **Graph-Informed Hard Negative Modeling (GHNM)**. The repository includes patient-grouped relation-graph construction, matched controls, component ablations, downstream evaluation, missing-lead robustness, and patient-clustered paired bootstrap analysis.
 
-Only MCKI-ECG code is included. Reproduction code and pretrained weights for external comparison models are intentionally excluded.
+Only DRel-ECG code is included. Reproduction code and pretrained weights for external comparison models are intentionally excluded.
 
 ## Repository layout
 
 ```text
-mcki_ecg/                  Core model, loss, data, graph, and evaluation modules
-scripts/data/              PTB-XL preprocessing
+drel_ecg/                  Canonical model, loss, data, graph, and evaluation package
+mcki_ecg/                  Backward-compatible import wrappers for archived code
 scripts/training/          Pretraining, graph controls, ablations, and adaptation
 scripts/evaluation/        Strict LP, external, missing-lead, and sensitivity analyses
 scripts/statistics/        Patient-clustered and graph-control paired bootstrap
 scripts/figures/           Relation-graph figure and auditable matrix exports
 configs/                   Canonical protocol and example comparison configuration
-resources/manifests/       PTB-XL split/audit manifests used in the study
+resources/manifests/       PTB-XL split and audit manifests used in the study
 resources/hndr_pairs.csv   Prespecified diagnostic pairs for HNDR
-tests/                     Lightweight core checks
+tests/                     Lightweight core and compatibility checks
 ```
 
-## Terminology
+## Canonical terminology
 
-The public code uses one canonical vocabulary:
-
-- **MCKI-ECG**: complete method.
-- **GHNM**: graph-guided hard-negative mining loss.
-- **Hybrid**: graph built from the equally weighted co-occurrence prior and normalized patient-grouped cross-fitted confusion matrix.
+- **DRel-ECG**: the complete proposed framework.
+- **GHNM**: Graph-Informed Hard Negative Modeling, the diagnostic-relation-guided denominator-weighting mechanism.
+- **Hybrid**: the graph built from the equally weighted co-occurrence prior and normalized patient-grouped cross-fitted confusion matrix.
 - **Uniform Negatives**: GHNM removed while all other modules remain matched.
-- **Degree-Matched Shuffled**: shuffled graph with the same edge budget.
+- **Degree-Matched Shuffled**: a shuffled graph with the same edge budget.
 - **Dynamic Lead Masking**, **Local Contrastive Loss**, **Alignment**, and **Lead-Aware Modulation**: component names used in code and manuscript tables.
 - **Strict Linear Probing**: encoder parameters and normalization state are frozen; only a new linear classifier is optimized.
 
-Legacy development names such as `stage8`, date-suffixed filenames, `MCKI_Pro`, and `processed_v3` are not part of the public file layout. A few internal compatibility aliases remain solely so that archived checkpoints can be loaded.
+The former public name **MCKI-ECG** is retained only in the `mcki_ecg` compatibility namespace and legacy aliases required to load archived scripts and checkpoints. New code, result tables, and artifacts use `DRel-ECG`, `drel_ecg`, and `DRelECGModel`.
 
 ## Environment
 
-Python 3.10 or newer is recommended. Install a CUDA-compatible PyTorch build for the target machine first, then install the remaining package dependencies:
+Python 3.10 or newer is recommended. Install a CUDA-compatible PyTorch build for the target machine first, then install this package:
 
 ```bash
 python -m venv .venv
@@ -45,25 +43,21 @@ pip install torch --index-url https://download.pytorch.org/whl/cu128
 pip install -e .
 ```
 
-## PTB-XL preparation
+On Windows PowerShell, activate the environment with `.venv\Scripts\Activate.ps1`.
 
-Download and unpack PTB-XL v1.0.3 from PhysioNet. The preparation script reads the official 100 Hz records and creates the five-superclass arrays using folds 1–8/9/10 for train/validation/test:
+## Data contract
 
-```bash
-python -m scripts.data.prepare_ptbxl \
-  --source-root /path/to/ptb-xl-a-large-publicly-available-electrocardiography-dataset-1.0.3 \
-  --out-dir data/processed
-```
+DRel-ECG uses the PTB-XL five-superclass task with the fixed class order `NORM, MI, STTC, CD, HYP`. Signals are stored as 100 Hz, 10-second arrays with shape `N × 12 × 1000`. The released manifests document record identity, patient identity, official fold assignment, and split membership.
 
-Expected signal shape is `12 × 1000` after loading. The class order is fixed to `NORM, MI, STTC, CD, HYP`. The script saves record IDs, patient IDs, `strat_fold`, filenames, labels, positive counts, and patient-overlap checks.
+Place the prepared arrays under `data/processed` using the filenames expected by `drel_ecg.data`. Raw ECG files, external cohorts, predictions, and checkpoints are not committed to Git.
 
-Raw ECG data, external cohorts, predictions, and checkpoints are not committed to Git.
+Georgia and SPH evaluation expects cohort-specific `X_test.npy` and `y_test_mh.npy` files with the same signal shape and class order. The evaluation scripts do not perform target-cohort training, model selection, or threshold recalibration.
 
-## Reproduce the relation graph and MCKI-ECG training
+## Relation graph and DRel-ECG training
 
-The canonical configuration is documented in [`configs/mcki_ecg.yaml`](configs/mcki_ecg.yaml). The executable experiment defaults are defined in `mcki_ecg/experiment.py`.
+The canonical configuration is documented in [`configs/drel_ecg.yaml`](configs/drel_ecg.yaml). Executable defaults are defined in `drel_ecg/experiment.py`.
 
-First build the train-only record-grouped reference used for the graph-stability comparison:
+Build the train-only record-grouped reference used for graph-stability comparison:
 
 ```bash
 python -m scripts.training.train_crossfit_hybrid \
@@ -74,7 +68,7 @@ python -m scripts.training.train_crossfit_hybrid \
   --seeds 42,123,1024
 ```
 
-Then reconstruct the graph with patient-grouped five-fold cross-fitting:
+Reconstruct the relation graph with patient-grouped five-fold cross-fitting:
 
 ```bash
 python -m scripts.training.train_patient_grouped \
@@ -84,7 +78,7 @@ python -m scripts.training.train_patient_grouped \
   --out-dir outputs/patient_grouped_reference
 ```
 
-Finally use the patient-grouped graph artifacts for the second pretraining stage, matched graph controls, and requested downstream protocols:
+Use the patient-grouped graph artifacts for the second pretraining stage and matched controls:
 
 ```bash
 python -m scripts.training.train_fixed_graph_controls \
@@ -98,7 +92,7 @@ python -m scripts.training.train_fixed_graph_controls \
 
 Component variants are run with `scripts.training.train_component_ablations` using the same data, seeds, graph, edge budget, and training schedule.
 
-## Strict linear probing
+## Strict Linear Probing
 
 The checkpoint pattern must contain `{seed}`:
 
@@ -109,7 +103,7 @@ python -m scripts.evaluation.strict_linear_probe \
   --out-dir outputs/strict_linear_probe
 ```
 
-The script saves each seed's frozen-encoder head, validation-selected thresholds, validation/test probabilities, targets, metrics, and the three-seed summary.
+Each seed directory contains the frozen-encoder linear head, validation-selected thresholds, validation/test probabilities, targets, metrics, and the three-seed summary.
 
 ## Missing-lead robustness
 
@@ -122,11 +116,9 @@ python -m scripts.evaluation.missing_lead \
   --out-dir outputs/missing_lead
 ```
 
-Random lead masks are deterministic per record and shared across model seeds. The summary reports the mean and sample standard deviation of both absolute AUPRC and the within-seed decrease from Original.
+Random lead masks are deterministic per record and shared across model seeds. The summary reports the mean and sample standard deviation of both absolute AUPRC and the within-seed decrease from the original input.
 
 ## External evaluation
-
-Georgia and SPH must be prepared as `X_test.npy` and `y_test_mh.npy` with the same input shape and class order:
 
 ```bash
 python -m scripts.evaluation.external \
@@ -138,11 +130,9 @@ python -m scripts.evaluation.external \
   --out-dir outputs/external
 ```
 
-No target-cohort training or threshold tuning is performed.
-
 ## Patient-clustered paired bootstrap
 
-Define probability/target patterns in a JSON file following [`configs/comparisons.example.json`](configs/comparisons.example.json), then run:
+Define probability and target patterns following [`configs/comparisons.example.json`](configs/comparisons.example.json), then run:
 
 ```bash
 python -m scripts.statistics.patient_clustered_bootstrap \
@@ -154,18 +144,33 @@ python -m scripts.statistics.patient_clustered_bootstrap \
   --n-boot 10000
 ```
 
-The output reports the seed-mean paired difference, 95% percentile interval, empirical `Pr(Δ ≤ 0)`, and the number of positive seed directions.
+The output reports the seed-mean paired difference, 95% percentile interval, empirical `Pr(Delta <= 0)`, and the number of seeds with a positive direction.
+
+## Backward compatibility
+
+Archived code can continue to use imports such as:
+
+```python
+from mcki_ecg.model import MCKIECGModel
+```
+
+The canonical equivalent is:
+
+```python
+from drel_ecg.model import DRelECGModel
+```
+
+Both names resolve to the same implementation. The legacy backbone identifiers `mcki_ecg_resnet18`, `build_mcki_ecg_backbone`, and `build_MCKI_backbone` are also accepted. Compatibility names must not be used in new result tables or manuscript text.
 
 ## Tests
 
 ```bash
-python -m compileall -q mcki_ecg scripts tests
+python -m compileall -q drel_ecg mcki_ecg scripts tests
 pytest -q
 ```
 
 ## Reproducibility notes
 
-- The released manifests document record identity, patient identity, and official fold assignment.
 - Relation matrices and selected edges are generated by code; the figure script exports all intermediate matrices and the complete ten-pair edge table.
 - Restricted 1%/10% experiments refer to downstream adaptation after fully label-informed pretraining, not label-efficient pretraining.
 - Experimental outputs should be stored under `outputs/`, which is ignored by Git.

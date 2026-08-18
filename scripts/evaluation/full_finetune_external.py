@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Matched source-only external evaluation for formal patient-grouped MCKI Full-FT."""
+"""Matched source-only external evaluation for formal patient-grouped DRel-ECG Full-FT."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import torch
 from sklearn.metrics import average_precision_score, f1_score, roc_auc_score
 from torch.utils.data import DataLoader, Dataset
 
-import mcki_ecg.experiment as experiment
+import drel_ecg.experiment as experiment
 
 
 CLASS_NAMES = ["NORM", "MI", "STTC", "CD", "HYP"]
@@ -128,7 +128,7 @@ def main() -> None:
             row = {
                 "Dataset": name,
                 "Protocol": "Full_Finetune_source_only",
-                "Method": "MCKI-ECG patient-grouped",
+                "Method": "DRel-ECG patient-grouped",
                 "Seed": seed,
                 "Checkpoint": str(checkpoint_path),
                 **evaluate(probs, targets, thresholds, args.pairs_csv),
@@ -147,13 +147,13 @@ def main() -> None:
             torch.cuda.empty_cache()
 
     per_seed = pd.DataFrame(rows)
-    per_seed.to_csv(output / "mcki_fullft_external_per_seed.csv", index=False)
+    per_seed.to_csv(output / "drel_fullft_external_per_seed.csv", index=False)
     summary_rows: list[dict] = []
     for dataset, group in per_seed.groupby("Dataset", sort=False):
         row = {
             "Dataset": dataset,
             "Protocol": "Full_Finetune_source_only",
-            "Method": "MCKI-ECG patient-grouped",
+            "Method": "DRel-ECG patient-grouped",
             "Num_Seeds": len(group),
         }
         columns = METRICS + (["Macro_AUC_4c", "AUPRC_4c"] if dataset == "Georgia" else [])
@@ -165,7 +165,7 @@ def main() -> None:
             row[metric] = f"{mean:.4f} +/- {std:.4f}"
         summary_rows.append(row)
     summary = pd.DataFrame(summary_rows)
-    summary.to_csv(output / "mcki_fullft_external_summary.csv", index=False)
+    summary.to_csv(output / "drel_fullft_external_summary.csv", index=False)
     audit = {
         "protocol": "Full fine-tuning on PTB-XL; source-only external inference with validation-selected thresholds",
         "graph_protocol": "patient-grouped relation-graph construction",

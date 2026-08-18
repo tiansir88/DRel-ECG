@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Source-only Georgia and SPH evaluation with strict MCKI-ECG probes."""
+"""Source-only Georgia and SPH evaluation with strict DRel-ECG probes."""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
-import mcki_ecg.experiment as experiment
-from mcki_ecg.evaluation import (
+import drel_ecg.experiment as experiment
+from drel_ecg.evaluation import (
     ExternalECGDataset,
     classification_metrics,
     load_hndr_pairs,
@@ -82,7 +82,7 @@ def main() -> None:
             np.save(run_dir / "thresholds.npy", thresholds.astype(np.float32))
             row = {
                 "dataset": dataset_name, "protocol": "Strict Linear Probing source-only",
-                "method": "MCKI-ECG", "seed": seed,
+                "method": "DRel-ECG", "seed": seed,
                 "encoder_checkpoint": str(encoder_path),
                 "head_checkpoint": args.head_pattern.format(seed=seed),
                 **classification_metrics(probs, targets, thresholds, pairs),
@@ -98,7 +98,7 @@ def main() -> None:
     summary_rows = []
     metrics = ["Macro_AUC", "AUPRC", "Macro_F1", "MI_F1", "HNDR_Pair", "HNDR_Inst"]
     for dataset_name, group in frame.groupby("dataset", sort=False):
-        row = {"dataset": dataset_name, "method": "MCKI-ECG", "n_seeds": len(group)}
+        row = {"dataset": dataset_name, "method": "DRel-ECG", "n_seeds": len(group)}
         for metric in metrics:
             row[f"{metric}_mean"] = float(group[metric].mean())
             row[f"{metric}_sd"] = float(group[metric].std(ddof=1))

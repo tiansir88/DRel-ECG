@@ -46,7 +46,7 @@ supplemental = repo / "scripts" / "supplemental"
 sys.path.insert(0, str(supplemental))
 from scripts.training import train_fixed_graph_controls as fixed  # noqa: E402
 
-stage8 = fixed.stage8
+drel = fixed.drel
 crossfit = fixed.crossfit
 seed = int(args.seed)
 torch.set_num_threads(max(1, int(args.threads)))
@@ -100,17 +100,17 @@ for protocol in args.protocols:
         continue
 
     print(f"[Start] seed={seed} protocol={protocol} device={device}", flush=True)
-    stage8.seed_everything(seed)
-    train_loader, val_loader, test_loader, few_shot_indices = stage8.prepare_protocol_loaders_from_base(
+    drel.seed_everything(seed)
+    train_loader, val_loader, test_loader, few_shot_indices = drel.prepare_protocol_loaders_from_base(
         train_dataset, val_dataset, test_dataset, cfg, protocol, seed
     )
-    model = stage8.build_model(cfg, device)
+    model = drel.build_model(cfg, device)
     model.load_state_dict(pretrained_state, strict=True)
-    model, thresholds = stage8.train_protocol(model, train_loader, val_loader, cfg, device, protocol)
-    val_probs, val_targets = stage8.collect_probs(model, val_loader, device)
-    test_probs, test_targets = stage8.collect_probs(model, test_loader, device)
-    val_metrics = stage8.evaluate_from_probs(val_probs, val_targets, thresholds)
-    test_metrics = stage8.evaluate_from_probs(test_probs, test_targets, thresholds)
+    model, thresholds = drel.train_protocol(model, train_loader, val_loader, cfg, device, protocol)
+    val_probs, val_targets = drel.collect_probs(model, val_loader, device)
+    test_probs, test_targets = drel.collect_probs(model, test_loader, device)
+    val_metrics = drel.evaluate_from_probs(val_probs, val_targets, thresholds)
+    test_metrics = drel.evaluate_from_probs(test_probs, test_targets, thresholds)
 
     protocol_dir.mkdir(parents=True, exist_ok=True)
     crossfit.save_protocol_checkpoint(str(seed_dir), protocol, seed, model, thresholds, cfg)
@@ -123,7 +123,7 @@ for protocol in args.protocols:
         "protocol": protocol,
         "n_train_samples": len(train_loader.dataset),
         "few_shot_indices": json.dumps(few_shot_indices) if few_shot_indices is not None else "",
-        "graph_source": "fixed patient-grouped full-MCKI reference graph",
+        "graph_source": "fixed patient-grouped full DRel-ECG reference graph",
         "pretrained_checkpoint": str(checkpoint_path),
         "pretraining_performed": False,
         **{f"val_{k}": v for k, v in val_metrics.items()},

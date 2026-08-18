@@ -1,6 +1,7 @@
 __pycache__/
 *.py[cod]
 *.so
+*.egg-info/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -11,6 +12,7 @@ venv/
 .DS_Store
 Thumbs.db
 
+# Local datasets and generated experiment artifacts.
 data/
 outputs/
 checkpoints/

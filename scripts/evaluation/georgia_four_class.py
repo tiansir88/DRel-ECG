@@ -43,7 +43,7 @@ def main() -> None:
             raise ValueError("Georgia targets differ across seeds")
         probs_4c, targets_4c = probs[:, KEEP], targets[:, KEEP]
         rows.append({
-            "method": "MCKI-ECG", "seed": seed, "n_records": len(targets),
+            "method": "DRel-ECG", "seed": seed, "n_records": len(targets),
             "excluded_class": "MI", "included_classes": "NORM;STTC;CD;HYP",
             "Macro_AUC_4c": float(roc_auc_score(targets_4c, probs_4c, average="macro")),
             "AUPRC_4c": float(average_precision_score(targets_4c, probs_4c, average="macro")),
@@ -52,7 +52,7 @@ def main() -> None:
     frame = pd.DataFrame(rows)
     frame.to_csv(args.out_dir / "per_seed.csv", index=False)
     summary = {
-        "method": "MCKI-ECG", "n_seeds": len(frame), "excluded_class": "MI",
+        "method": "DRel-ECG", "n_seeds": len(frame), "excluded_class": "MI",
         "Macro_AUC_4c_mean": float(frame.Macro_AUC_4c.mean()),
         "Macro_AUC_4c_sd": float(frame.Macro_AUC_4c.std(ddof=1)),
         "AUPRC_4c_mean": float(frame.AUPRC_4c.mean()),
