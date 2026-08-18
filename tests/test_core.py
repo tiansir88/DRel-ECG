@@ -1,6 +1,8 @@
 import numpy as np
 import torch
 
+import drel_ecg.experiment as drel_experiment
+import mcki_ecg.experiment as legacy_experiment
 from drel_ecg.losses import GHNMLoss
 from drel_ecg.model import DRelECGModel
 from drel_ecg.relation_graph import blend_relation_matrices, estimate_confusion_matrix_from_probs
@@ -41,3 +43,4 @@ def test_ghnm_loss_is_finite():
 
 def test_legacy_model_name_resolves_to_drel_model():
     assert MCKIECGModel is DRelECGModel
+    assert legacy_experiment._print_matrix_stats is drel_experiment._print_matrix_stats
