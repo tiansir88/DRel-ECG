@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unified train-only cross-fitted, binary edge-budget MCKI experiments.
+"""Unified train-only cross-fitted, binary edge-budget DRel-ECG experiments.
 
 This script is the final unified protocol:
   * S_confusion is estimated only from train-split out-of-fold predictions.
@@ -29,7 +29,7 @@ if str(SCRIPT_DIR) not in sys.path:
 from scripts.training import train_crossfit_confusion as crossfit  # noqa: E402
 
 
-stage8 = crossfit.stage8
+drel = crossfit.drel
 
 DEFAULT_VARIANTS = ["Hybrid"]
 DEFAULT_PROTOCOLS = ["Linear_Probing"]
@@ -95,14 +95,14 @@ def parse_csv_strings(text: str) -> List[str]:
 
 
 def binary_edge_budget(cfg: Dict) -> int:
-    prior = stage8.load_prior_matrix(cfg.get("relation_matrix_values"))
+    prior = drel.load_prior_matrix(cfg.get("relation_matrix_values"))
     ref_threshold = float(cfg.get("source_binary_reference_threshold", 0.10))
     return int(cfg.get("binary_edge_budget") or _count_edges_from_threshold(prior, ref_threshold))
 
 
 def build_variant_settings(variant: str, cfg: Dict, seed: int) -> Dict:
-    prior = stage8.load_prior_matrix(cfg.get("relation_matrix_values"))
-    n = len(stage8.CLASS_NAMES)
+    prior = drel.load_prior_matrix(cfg.get("relation_matrix_values"))
+    n = len(drel.CLASS_NAMES)
     ident = _identity(n)
     ref_threshold = float(cfg.get("source_binary_reference_threshold", 0.10))
     budget = binary_edge_budget(cfg)
@@ -156,7 +156,7 @@ def build_variant_settings(variant: str, cfg: Dict, seed: int) -> Dict:
 
 
 def resolve_final_matrix(cfg: Dict, prior: np.ndarray, conf: np.ndarray, mode: str, shuffle_seed: int | None) -> np.ndarray:
-    n = len(stage8.CLASS_NAMES)
+    n = len(drel.CLASS_NAMES)
     budget = binary_edge_budget(cfg)
     if mode == "identity":
         return _identity(n)
@@ -164,7 +164,7 @@ def resolve_final_matrix(cfg: Dict, prior: np.ndarray, conf: np.ndarray, mode: s
         return _binary_topk(prior, budget)
     if mode == "confusion_binary":
         return _binary_topk(conf, budget)
-    hybrid = stage8.blend_relation_matrices(prior, conf, cfg["lambda_prior"], cfg["lambda_conf"])
+    hybrid = drel.blend_relation_matrices(prior, conf, cfg["lambda_prior"], cfg["lambda_conf"])
     if mode == "shuffled_hybrid_binary":
         if shuffle_seed is None:
             raise ValueError("shuffle_seed is required for shuffled graph")
@@ -187,7 +187,7 @@ def save_binary_relation_artifacts(seed_dir: str, prior: np.ndarray, conf: np.nd
     with open(os.path.join(seed_dir, "relation_matrices.json"), "w", encoding="utf-8") as f:
         json.dump(
             {
-                "class_names": stage8.CLASS_NAMES,
+                "class_names": drel.CLASS_NAMES,
                 "S_prior_raw": prior.tolist(),
                 "S_confusion_trainonly": conf.tolist(),
                 "S_warmup_binary": warmup.tolist(),
@@ -211,7 +211,7 @@ def run_single_seed_variant(
     cfg = copy.deepcopy(base_cfg)
     cfg.update(settings["cfg_updates"])
 
-    stage8.seed_everything(seed)
+    drel.seed_everything(seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     base_train_loader, base_val_loader, base_test_loader = crossfit.create_ptbxl_loaders(
         data_dir,
@@ -222,8 +222,8 @@ def run_single_seed_variant(
     val_dataset = base_val_loader.dataset
     test_dataset = base_test_loader.dataset
 
-    model = stage8.build_model(cfg, device)
-    prior = stage8.load_prior_matrix(cfg.get("relation_matrix_values"))
+    model = drel.build_model(cfg, device)
+    prior = drel.load_prior_matrix(cfg.get("relation_matrix_values"))
     warmup_matrix = np.asarray(settings["warmup_matrix"], dtype=np.float32)
     warmup_epochs = min(int(cfg["warmup_pretrain_epochs"]), int(cfg["pretrain_epochs"]))
     hybrid_epochs = max(0, int(cfg["pretrain_epochs"]) - warmup_epochs)
@@ -232,9 +232,9 @@ def run_single_seed_variant(
         f"\n[Variant {variant} | Seed {seed}] train-only crossfit binary-budget | "
         f"warmup={warmup_epochs} | final={hybrid_epochs} | folds={n_folds} | budget={binary_edge_budget(cfg)}"
     )
-    stage8._print_matrix_stats("S_warmup_binary", warmup_matrix)
+    drel._print_matrix_stats("S_warmup_binary", warmup_matrix)
 
-    model, rhythm_projector, local_projector = stage8.pretrain_with_leadaware_multiscale_relation(
+    model, rhythm_projector, local_projector = drel.pretrain_with_leadaware_multiscale_relation(
         model=model,
         train_loader=base_train_loader,
         cfg=cfg,
@@ -259,8 +259,8 @@ def run_single_seed_variant(
         graph_dir,
     )
     final_matrix = resolve_final_matrix(cfg, prior, conf, settings["final_mode"], settings["shuffle_seed"])
-    stage8._print_matrix_stats("S_confusion_trainonly", conf)
-    stage8._print_matrix_stats("S_final_binary", final_matrix)
+    drel._print_matrix_stats("S_confusion_trainonly", conf)
+    drel._print_matrix_stats("S_final_binary", final_matrix)
     save_binary_relation_artifacts(seed_dir, prior, conf, warmup_matrix, final_matrix)
 
     with open(os.path.join(seed_dir, "unified_binary_budget_config.json"), "w", encoding="utf-8") as f:
@@ -283,7 +283,7 @@ def run_single_seed_variant(
         )
 
     if hybrid_epochs > 0:
-        model, rhythm_projector, local_projector = stage8.pretrain_with_leadaware_multiscale_relation(
+        model, rhythm_projector, local_projector = drel.pretrain_with_leadaware_multiscale_relation(
             model=model,
             train_loader=base_train_loader,
             cfg=cfg,
@@ -303,14 +303,14 @@ def run_single_seed_variant(
             "graph_protocol": "train-only crossfitted binary edge-budget",
             "model_state_dict": pretrained_state,
             "cfg": cfg,
-            "class_names": stage8.CLASS_NAMES,
+            "class_names": drel.CLASS_NAMES,
         },
         os.path.join(seed_dir, "pretrained_checkpoint.pt"),
     )
 
     rows = []
     for protocol in protocols:
-        proto_train_loader, proto_val_loader, proto_test_loader, few_shot_indices = stage8.prepare_protocol_loaders_from_base(
+        proto_train_loader, proto_val_loader, proto_test_loader, few_shot_indices = drel.prepare_protocol_loaders_from_base(
             train_dataset,
             val_dataset,
             test_dataset,
@@ -318,9 +318,9 @@ def run_single_seed_variant(
             protocol,
             seed,
         )
-        proto_model = stage8.build_model(cfg, device)
+        proto_model = drel.build_model(cfg, device)
         proto_model.load_state_dict(pretrained_state)
-        proto_model, thresholds = stage8.train_protocol(
+        proto_model, thresholds = drel.train_protocol(
             proto_model,
             proto_train_loader,
             proto_val_loader,
@@ -328,10 +328,10 @@ def run_single_seed_variant(
             device,
             protocol,
         )
-        val_probs, val_targets = stage8.collect_probs(proto_model, proto_val_loader, device)
-        test_probs, test_targets = stage8.collect_probs(proto_model, proto_test_loader, device)
-        val_metrics = stage8.evaluate_from_probs(val_probs, val_targets, thresholds)
-        test_metrics = stage8.evaluate_from_probs(test_probs, test_targets, thresholds)
+        val_probs, val_targets = drel.collect_probs(proto_model, proto_val_loader, device)
+        test_probs, test_targets = drel.collect_probs(proto_model, proto_test_loader, device)
+        val_metrics = drel.evaluate_from_probs(val_probs, val_targets, thresholds)
+        test_metrics = drel.evaluate_from_probs(test_probs, test_targets, thresholds)
         crossfit.save_protocol_checkpoint(seed_dir, protocol, seed, proto_model, thresholds, cfg)
         crossfit.save_protocol_arrays(seed_dir, protocol, val_probs, val_targets, test_probs, test_targets, thresholds)
         rows.append(
@@ -378,7 +378,7 @@ def summarize(rows: List[Dict], out_dir: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-dir", default=stage8.DEFAULT_DATA_DIR)
+    parser.add_argument("--data-dir", default=drel.DEFAULT_DATA_DIR)
     parser.add_argument("--out-dir", required=True)
     parser.add_argument("--variants", default=",".join(DEFAULT_VARIANTS))
     parser.add_argument("--protocols", default=",".join(DEFAULT_PROTOCOLS))
@@ -392,7 +392,7 @@ def main() -> None:
     parser.add_argument("--bootstrap-lp-epochs", type=int, default=None)
     args = parser.parse_args()
 
-    cfg = copy.deepcopy(stage8.CFG)
+    cfg = copy.deepcopy(drel.CFG)
     cfg["source_binary_reference_threshold"] = 0.10
     if args.batch_size is not None:
         cfg["batch_size"] = int(args.batch_size)

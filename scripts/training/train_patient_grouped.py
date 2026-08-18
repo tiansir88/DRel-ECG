@@ -23,9 +23,9 @@ sys.path.insert(0, str(SUPP))
 from scripts.training import train_component_ablations as minimal  # noqa: E402
 
 
-stage8 = minimal.stage8
+drel = minimal.drel
 crossfit = minimal.crossfit
-CLASS_NAMES = list(stage8.CLASS_NAMES)
+CLASS_NAMES = list(drel.CLASS_NAMES)
 SEEDS = (42, 123, 1024)
 
 
@@ -126,7 +126,7 @@ def run_seed(seed, cfg, data_dir, manifest_path, out_root, n_folds, record_root)
         print(f"[Skip] patient-grouped reference seed={seed}", flush=True)
         return json.loads((seed_dir / "summary.json").read_text())
     seed_dir.mkdir(parents=True, exist_ok=True)
-    stage8.seed_everything(seed)
+    drel.seed_everything(seed)
     device = torch.device("cuda")
     train_loader, _, _ = crossfit.create_ptbxl_loaders(
         str(data_dir), batch_size=int(cfg["batch_size"]), num_workers=int(cfg["num_workers"])
@@ -143,7 +143,7 @@ def run_seed(seed, cfg, data_dir, manifest_path, out_root, n_folds, record_root)
     settings = minimal.build_variant_settings("Hybrid", cfg, seed)
     run_cfg = copy.deepcopy(cfg)
     run_cfg.update(settings["cfg_updates"])
-    model = stage8.build_model(run_cfg, device)
+    model = drel.build_model(run_cfg, device)
     warmup_epochs = int(run_cfg["warmup_pretrain_epochs"])
     warm_path = seed_dir / "warmup_checkpoint.pt"
     if warm_path.exists():
@@ -151,7 +151,7 @@ def run_seed(seed, cfg, data_dir, manifest_path, out_root, n_folds, record_root)
         model.load_state_dict(payload["model_state_dict"], strict=True)
         print(f"[Resume] loaded {warm_path}", flush=True)
     else:
-        model, rhythm_projector, local_projector = stage8.pretrain_with_leadaware_multiscale_relation(
+        model, rhythm_projector, local_projector = drel.pretrain_with_leadaware_multiscale_relation(
             model=model,
             train_loader=train_loader,
             cfg=run_cfg,
@@ -202,8 +202,8 @@ def run_seed(seed, cfg, data_dir, manifest_path, out_root, n_folds, record_root)
 
     raw = raw_confusion(oof_probs, oof_targets)
     conf = normalize(raw)
-    prior = stage8.load_prior_matrix(run_cfg.get("relation_matrix_values")).astype(np.float64)
-    fused = stage8.blend_relation_matrices(prior, conf, run_cfg["lambda_prior"], run_cfg["lambda_conf"])
+    prior = drel.load_prior_matrix(run_cfg.get("relation_matrix_values")).astype(np.float64)
+    fused = drel.blend_relation_matrices(prior, conf, run_cfg["lambda_prior"], run_cfg["lambda_conf"])
     final = binary_topk(fused, minimal.binary_edge_budget(run_cfg))
 
     np.save(seed_dir / "patient_grouped_oof_probs.npy", oof_probs)
@@ -216,7 +216,7 @@ def run_seed(seed, cfg, data_dir, manifest_path, out_root, n_folds, record_root)
     else:
         record_conf_path = audit_seed_dir / "S_confusion_trainonly.npy"
         record_conf = np.load(record_conf_path).astype(np.float64)
-    record_fused = stage8.blend_relation_matrices(prior, record_conf, run_cfg["lambda_prior"], run_cfg["lambda_conf"])
+    record_fused = drel.blend_relation_matrices(prior, record_conf, run_cfg["lambda_prior"], run_cfg["lambda_conf"])
     if record_final_path.exists():
         record_final = pd.read_csv(record_final_path, index_col=0).to_numpy(dtype=np.float32)
     else:
@@ -285,7 +285,7 @@ def main():
     ap.add_argument("--n-folds", type=int, default=5)
     args = ap.parse_args()
     seeds = [int(x) for x in args.seeds.split(",")]
-    cfg = copy.deepcopy(stage8.CFG)
+    cfg = copy.deepcopy(drel.CFG)
     cfg.update({"pretrain_epochs": 40, "warmup_pretrain_epochs": 10, "num_workers": 4})
     args.out_dir.mkdir(parents=True, exist_ok=True)
     summaries = [

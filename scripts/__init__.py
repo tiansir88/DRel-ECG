@@ -1,1 +1,1 @@
-"""Executable MCKI-ECG experiment modules."""
+"""Executable DRel-ECG experiment modules."""

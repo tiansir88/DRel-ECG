@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Strict linear probing for frozen MCKI-ECG encoders."""
+"""Strict linear probing for frozen DRel-ECG encoders."""
 
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ import torch.nn as nn
 from sklearn.metrics import average_precision_score
 from torch.utils.data import DataLoader, TensorDataset
 
-import mcki_ecg.experiment as experiment
-from mcki_ecg.data import create_ptbxl_loaders
+import drel_ecg.experiment as experiment
+from drel_ecg.data import create_ptbxl_loaders
 
 
 DEFAULT_SEEDS = (42, 123, 1024)
@@ -152,7 +152,7 @@ def main() -> None:
         torch.save({"head_state_dict": head.state_dict(), "seed": seed}, run_dir / "strict_linear_head.pt")
         metrics = experiment.evaluate_from_probs(test_probs, test_y.numpy(), thresholds)
         row = {
-            "method": "MCKI-ECG", "seed": seed, "protocol": "Strict Linear Probing",
+            "method": "DRel-ECG", "seed": seed, "protocol": "Strict Linear Probing",
             "encoder_parameters": "frozen", "normalization_state": "frozen_eval",
             "best_epoch": best_epoch, "pretrained_checkpoint": str(checkpoint_path), **metrics,
         }
@@ -162,7 +162,7 @@ def main() -> None:
     frame = pd.DataFrame(rows)
     frame.to_csv(args.out_dir / "per_seed.csv", index=False)
     metric_names = ["Macro_AUC", "AUPRC", "Macro_F1", "MI_F1", "HNDR_Pair", "HNDR_Inst"]
-    summary = {"method": "MCKI-ECG", "protocol": "Strict Linear Probing", "n_seeds": len(frame)}
+    summary = {"method": "DRel-ECG", "protocol": "Strict Linear Probing", "n_seeds": len(frame)}
     for metric in metric_names:
         summary[f"{metric}_mean"] = float(frame[metric].mean())
         summary[f"{metric}_sd"] = float(frame[metric].std(ddof=1))

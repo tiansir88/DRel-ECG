@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Missing-lead robustness for strict MCKI-ECG probes."""
+"""Missing-lead robustness for strict DRel-ECG probes."""
 
 from __future__ import annotations
 
@@ -13,9 +13,9 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
-import mcki_ecg.experiment as experiment
-from mcki_ecg.data import create_ptbxl_loaders
-from mcki_ecg.evaluation import classification_metrics, load_hndr_pairs, load_linear_head
+import drel_ecg.experiment as experiment
+from drel_ecg.data import create_ptbxl_loaders
+from drel_ecg.evaluation import classification_metrics, load_hndr_pairs, load_linear_head
 
 
 CONDITIONS = (
@@ -62,7 +62,7 @@ def parse_args():
     parser.add_argument("--threshold-pattern", required=True)
     parser.add_argument("--pairs-csv", type=Path, default=Path("resources/hndr_pairs.csv"))
     parser.add_argument("--out-dir", type=Path, default=Path("outputs/missing_lead"))
-    parser.add_argument("--method", default="MCKI-ECG")
+    parser.add_argument("--method", default="DRel-ECG")
     parser.add_argument("--seeds", nargs="+", type=int, default=[42, 123, 1024])
     parser.add_argument("--mask-seed", type=int, default=20260710)
     parser.add_argument("--batch-size", type=int, default=256)
